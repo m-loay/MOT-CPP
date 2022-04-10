@@ -15,7 +15,8 @@
   * Windows: recommend using [MinGW](http://www.mingw.org/)
 * googletest [click here for installation instructions](https://github.com/google/googletest)
 * gocavr 5.0 [click here for installation instructions](https://gcovr.com/en/stable/installation.html)
-
+* gnu-plot 3.3 [click here for installation instructions](http://www.gnuplot.info/)
+* Eigen 3.3 [click here for installation instructions](https://eigen.tuxfamily.org/index.php?title=Main_Page)   
 ### Accuracy
 The output RMSE px, py, vx, vy output coordinates [0.04852,0.062393,0.366935,0.400275].
 Also the NIS for both lidar and radar is consistent as shown in the following figures:
