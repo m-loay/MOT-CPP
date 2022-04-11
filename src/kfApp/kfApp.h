@@ -22,6 +22,7 @@
 #include "KalmanConfig.h"
 #include "kalman_data.h"
 #include "measurement_package.h"
+#include "kalmanFilter.h"
 #ifdef USE_UNIT_TESTING
 #define private public
 #endif
@@ -37,6 +38,9 @@ public:
 
     ///* instance of kalman data
     KalmanData kd_;
+
+	/// linear Kalman filter
+	kalmanFilter linearkf_ = kalmanFilter();
 
     ///*Run the whole flow of the Kalman Filter from here.
     void ProcessMeasurement(const MeasurementPackage &measurement_pack);

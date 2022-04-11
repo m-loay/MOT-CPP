@@ -18,7 +18,6 @@
 #include<iostream>
 #include<math.h>
 #include "kfApp.h"
-#include "kalmanFilter.h"
 
 /**
  * @brief kfApp The constructor for kfApp.
@@ -28,9 +27,11 @@
  */
 kfApp::kfApp(int num_states)
 {
-
     ///* set kalman filter data.
     kd_.setKalmanData(num_states);
+	
+	// initialize linear kalman filter
+	linearkf_.initFilter(num_states);
 
     // initially set to false, set to true in first call of ProcessMeasurement.
     is_initialized_ = false;
@@ -39,25 +40,25 @@ kfApp::kfApp(int num_states)
     previous_timestamp_ = 0;
 
     // Process noise standard deviation longitudinal acceleration in m/s^2.
-    noise_ax= 5;
+    noise_ax= 5.0F;
 
     // Process noise standard deviation longitudinal acceleration in m/s^2.
-    noise_ay= 5;
+    noise_ay= 5.0F;
 
     // Laser measurement noise standard deviation position1 in m.
-    std_laspx_ = 0.05;
+    std_laspx_ = 0.05F;
 
     // Laser measurement noise standard deviation position2 in m.
-    std_laspy_ = 0.05;
+    std_laspy_ = 0.05F;
 
     // Radar measurement noise standard deviation radius in m.
-    std_radr_ = 0.5;
+    std_radr_ = 0.5F;
 
     // Radar measurement noise standard deviation angle in rad.
-    std_radphi_ = 0.05;
+    std_radphi_ = 0.05F;
 
     // Radar measurement noise standard deviation radius change in m/s.
-    std_radrd_ = 0.5;
+    std_radrd_ = 0.5F;
 }
 
 kfApp::~kfApp()
@@ -80,9 +81,9 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
      ****************************************************************************/
     if (!is_initialized_)
     {
-        kd_.x << 1, 1, 1, 1;
-        kd_.P(2,2) = 1000.0;
-        kd_.P(3,3) = 1000.0;
+		linearkf_.x << 1, 1, 1, 1;
+		linearkf_.P(2,2) = 1000.0;
+		linearkf_.P(3,3) = 1000.0;
 
         //check if radar readings
         if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR)
@@ -94,13 +95,13 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
             float px = rho * cos(phi);
             float py = rho * sin(phi);
 
-            kd_.x << px,py,0.0,0.0;
+			linearkf_.x << px,py,0.0,0.0;
         }
 
         //check if lidar readings
         else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER)
         {
-             kd_.x << measurement_pack.raw_measurements_(0),measurement_pack.raw_measurements_(1),0,0;
+			linearkf_.x << measurement_pack.raw_measurements_(0),measurement_pack.raw_measurements_(1),0,0;
         }
 
         previous_timestamp_ = measurement_pack.timestamp_;
@@ -113,7 +114,7 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
      *********************************************************************/
     //compute the time elapsed between the current and previous measurements
     //dt - expressed in seconds
-    float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
+    float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0F;
     previous_timestamp_ = measurement_pack.timestamp_;
 
     /**********************************************************************
@@ -148,9 +149,9 @@ void kfApp::Prediction(const double dt)
     /**********************************************************************
      *    1. Set the process covariance matrix Q
      *********************************************************************/
-    float dt_2 = dt * dt;
-    float dt_3 = dt_2 * dt;
-    float dt_4 = dt_3 * dt;
+	double dt_2 = dt * dt;
+	double dt_3 = dt_2 * dt;
+	double dt_4 = dt_3 * dt;
     Eigen::MatrixXd Q = Eigen::MatrixXd(kd_.m_numState, kd_.m_numState);
     Q <<  dt_4/4*noise_ax, 0, dt_3/2*noise_ax, 0,
          0, dt_4/4*noise_ay, 0, dt_3/2*noise_ay,
@@ -161,7 +162,7 @@ void kfApp::Prediction(const double dt)
      *    2. Perform the predict step
      *********************************************************************/
     //set kalman paramters for prediction step
-    kalmanFilter::predict(kd_.x, kd_.P, Q, g_, g_prime_, &dt);
+	linearkf_.predict(Q, g_, g_prime_, &dt);
 }
 
 /**
@@ -193,20 +194,15 @@ void kfApp::UpdateLidar(MeasurementPackage meas_package)
     /**********************************************************************
      *    Calculate Innovation
      *********************************************************************/
-    Eigen::VectorXd zpred = H * kd_.x;
+    Eigen::VectorXd zpred = H * linearkf_.x;
     Eigen::VectorXd Y = meas_package.raw_measurements_ - zpred;
-    Eigen::MatrixXd S = (H * kd_.P * H.transpose()) + R;
+    Eigen::MatrixXd S = (H * linearkf_.P * H.transpose()) + R;
     kd_.nis = Y.transpose() * S.inverse() * Y;
-
-    /**********************************************************************
-     *    Calculate Kalman Gain
-     *********************************************************************/
-    Eigen::MatrixXd K = kalmanFilter::CalculateKalmanGain(kd_.P, H, R);
 
     /**********************************************************************
      *    Update Linear
      *********************************************************************/
-    kalmanFilter::update(kd_.x, kd_.P, Y, H, K);
+	linearkf_.update(Y, H, R);
 }
 
 /**
@@ -226,7 +222,7 @@ void kfApp::UpdateRadar(MeasurementPackage meas_package)
      *    set output matrix H
      *********************************************************************/
     Eigen::MatrixXd H = Eigen::MatrixXd(measSize, kd_.m_numState);
-    H = h_prime_(kd_.x);
+    H = h_prime_(linearkf_.x);
 
     /**********************************************************************
      *    add measurement noise covariance matrix
@@ -238,21 +234,16 @@ void kfApp::UpdateRadar(MeasurementPackage meas_package)
     /**********************************************************************
      *    Calculate Measurement Prediction
      *********************************************************************/
-    Eigen::VectorXd zpred = h_(kd_.x ,measSize);
+    Eigen::VectorXd zpred = h_(linearkf_.x ,measSize);
     Eigen::VectorXd Y = meas_package.raw_measurements_ - zpred;
     Y = Innovationhelper(Y);
-    Eigen::MatrixXd S = (H * kd_.P * H.transpose()) + R;
+    Eigen::MatrixXd S = (H * linearkf_.P * H.transpose()) + R;
     kd_.nis = Y.transpose() * S.inverse() * Y;
-
-    /**********************************************************************
-     *    Calculate Kalman Gain
-     *********************************************************************/
-    Eigen::MatrixXd K = kalmanFilter::CalculateKalmanGain(kd_.P, H, R);
 
     /**********************************************************************
      *    Update Linear
      *********************************************************************/
-    kalmanFilter::update(kd_.x, kd_.P, Y, H, K);
+	linearkf_.update(Y, H, R);
 }
 
 /**

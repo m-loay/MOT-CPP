@@ -24,6 +24,29 @@
 class kalmanFilter
 {
 public:
+	Eigen::VectorXd x;
+	Eigen::MatrixXd P;
+	
+	kalmanFilter::kalmanFilter() {}
+	kalmanFilter::kalmanFilter(int numState)
+	{
+		initFilter(numState);
+	}
+
+	/*
+	 * Intialize the filter State and covariance
+	 */
+	void kalmanFilter::initFilter(int numState)
+	{
+		//create a 4D state vector, we don't know yet the values of the x state
+		x = Eigen::VectorXd(numState);
+		x.fill(0.0);
+
+		//state covariance matrix P
+		P = Eigen::MatrixXd::Identity(numState, numState);
+		P.diagonal().fill(0.1);
+	}
+
     /**
      * @brief predict
      * Perform the Prediction step in kalman filter.
@@ -47,12 +70,10 @@ public:
      *  Extra arguments {const void *}.
      *
      */
-    static void predict(Eigen::VectorXd & x,
-                        Eigen::MatrixXd & P,
-                        const Eigen::Ref<const Eigen::MatrixXd> &Q,
-                        std::function<Eigen::VectorXd(const Eigen::Ref<const Eigen::VectorXd> &, const void *)>g,
-                        std::function<Eigen::MatrixXd(const Eigen::Ref<const Eigen::VectorXd> &, const void *)>g_prime,
-                        const void *p_args = NULL)
+    void kalmanFilter::predict(const Eigen::Ref<const Eigen::MatrixXd> &Q,
+		std::function<Eigen::VectorXd(const Eigen::Ref<const Eigen::VectorXd> &, const void *)>g,
+        std::function<Eigen::MatrixXd(const Eigen::Ref<const Eigen::VectorXd> &, const void *)>g_prime,
+        const void *p_args = NULL)
     {
 
         x = g(x, p_args);
@@ -61,41 +82,8 @@ public:
     }
 
     /**
-     * @brief CalculateKalmanGain
-     * It calculates kalman gain.
-     *
-     * @param[in] P
-     * The mean of stat vector  {VectorXd &}.
-     * 
-     * @param[in] H 
-     * the measurement matrix  {MatrixXd}.
-     * 
-     * @param[in] R 
-     * the noise covariance measurement matrix  {MatrixXd}.
-     * 
-     * @return K 
-     * the kalman gain matrix  {MatrixXd}.
-     *
-     */
-    static Eigen::MatrixXd CalculateKalmanGain(const Eigen::Ref<const Eigen::MatrixXd> &P,
-                                               const Eigen::Ref<const Eigen::MatrixXd> &H,
-                                               const Eigen::Ref<const Eigen::MatrixXd> &R)
-    {
-        Eigen::MatrixXd Ht(H.transpose());
-        Eigen::MatrixXd S((H * P * Ht) + R);
-        Eigen::MatrixXd K(P *Ht * S.inverse());
-        return K;
-    }
-
-    /**
      * @brief update
      * Perform the update step.
-     *
-     * @param[in,out] x 
-     * The mean of stat vector  {VectorXd &}.
-     * 
-     * @param[in,out] P
-     * The mean of stat vector  {VectorXd &}.
      * 
      * @param[in] Y 
      * the innovation vector  {VectorXd}.
@@ -107,16 +95,46 @@ public:
      * the kalman gain matrix  {MatrixXd}.
      *
      */
-    static void update(Eigen::VectorXd & x,
-                       Eigen::MatrixXd & P,
-                       const Eigen::Ref<const Eigen::VectorXd> &Y,
-                       const Eigen::Ref<const Eigen::MatrixXd> &H,
-                       const Eigen::Ref<const Eigen::MatrixXd> &K)
+    void kalmanFilter::update(const Eigen::Ref<const Eigen::VectorXd> &Y,
+		const Eigen::Ref<const Eigen::MatrixXd> &H,
+		const Eigen::Ref<const Eigen::MatrixXd> &R)
     {
+		/**********************************************************************
+		 *    Calculate Kalman Gain
+		 *********************************************************************/
+		Eigen::MatrixXd K = CalculateKalmanGain(H, R);
+
+		/**********************************************************************
+		 *    Update Linear
+		 *********************************************************************/
         x = x + (K * Y);
         Eigen::MatrixXd I(Eigen::MatrixXd::Identity(x.size(), x.size()));
         P = (I - K * H) * P;
     }
+private:
+
+	/**
+	 * @brief CalculateKalmanGain
+	 * It calculates kalman gain.
+	 *
+	 * @param[in] H
+	 * the measurement matrix  {MatrixXd}.
+	 *
+	 * @param[in] R
+	 * the noise covariance measurement matrix  {MatrixXd}.
+	 *
+	 * @return K
+	 * the kalman gain matrix  {MatrixXd}.
+	 *
+	 */
+	Eigen::MatrixXd kalmanFilter::CalculateKalmanGain(const Eigen::Ref<const Eigen::MatrixXd> &H,
+		const Eigen::Ref<const Eigen::MatrixXd> &R)
+	{
+		Eigen::MatrixXd Ht(H.transpose());
+		Eigen::MatrixXd S((H * P * Ht) + R);
+		Eigen::MatrixXd K(P *Ht * S.inverse());
+		return K;
+	}
 
 };
 
