@@ -101,17 +101,17 @@ int main(int argc, char* argv[])
 
 #if defined(USE_EKF)
         // 3.output the estimation
-        double x  = tracking.kd_.x(kfApp::XPOS) ; // pos1 - est
-        double y  = tracking.kd_.x(kfApp::YPOS) ; // pos2 - est
-        double vx = tracking.kd_.x(kfApp::XVEL) ; // vx -est
-        double vy = tracking.kd_.x(kfApp::YVEL) ; // vy -est
+        double x  = tracking.linearkf_.x(kfApp::XPOS) ; // pos1 - est
+        double y  = tracking.linearkf_.x(kfApp::YPOS) ; // pos2 - est
+        double vx = tracking.linearkf_.x(kfApp::XVEL) ; // vx -est
+        double vy = tracking.linearkf_.x(kfApp::YVEL) ; // vy -est
 #endif
 #if defined(USE_UKF)
         // 3.output the estimation
-        double x  = tracking.kd_.x(ukfApp::XPOS) ; // pos1 - est
-        double y  = tracking.kd_.x(ukfApp::YPOS) ; // pos2 - est
-        double vx = tracking.kd_.x(ukfApp::VEL)* cos(tracking.kd_.x(ukfApp::THETA)); // vx - calculated from v & theta
-        double vy = tracking.kd_.x(ukfApp::VEL)* sin(tracking.kd_.x(ukfApp::THETA)); // vy - calculated from v & theta
+        double x  = tracking.linearkf_.x(ukfApp::XPOS) ; // pos1 - est
+        double y  = tracking.linearkf_.x(ukfApp::YPOS) ; // pos2 - est
+        double vx = tracking.linearkf_.x(ukfApp::VEL)* cos(tracking.kd_.x(ukfApp::THETA)); // vx - calculated from v & theta
+        double vy = tracking.linearkf_.x(ukfApp::VEL)* sin(tracking.kd_.x(ukfApp::THETA)); // vy - calculated from v & theta
 #endif
         temp_ukf_x_cartesian << x, y, vx, vy;
         tools.estimations.push_back(temp_ukf_x_cartesian);
