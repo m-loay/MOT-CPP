@@ -16,9 +16,9 @@ set(TEST_CASES_INCLIDE_DIR ${CMAKE_SOURCE_DIR}/src/testCases)
 
 
 # Use simulation, testing or unit test and the mode
-option (USE_TEST "Use Test Mode" ON )
-option (USE_UNIT_TESTING "Use Unit testing Mode" OFF)
-option (USE_EKF "Use Extnded Kalman Filter APP" OFF)
+option (USE_TEST "Use Test Mode" OFF )
+option (USE_UNIT_TESTING "Use Unit testing Mode" ON)
+option (USE_EKF "Use Extnded Kalman Filter APP" ON)
 option (USE_UKF "Use Unscented Kalman Filter" ON)
 
 #find the pacakges required for eigen and save directory

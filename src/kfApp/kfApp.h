@@ -20,7 +20,7 @@
 #include <Eigen/Dense>
 #include <cstdint>
 #include "KalmanConfig.h"
-#include "kalman_data.h"
+#include "kalmanFilter.h"
 #include "measurement_package.h"
 #ifdef USE_UNIT_TESTING
 #define private public
@@ -34,9 +34,6 @@ public:
 
     ///*/Destructor.
     virtual ~kfApp();
-
-    ///* instance of kalman data
-    KalmanData kd_;
 
     ///*Run the whole flow of the Kalman Filter from here.
     void ProcessMeasurement(const MeasurementPackage &measurement_pack);
@@ -54,6 +51,20 @@ public:
     //@param meas_package The measurement at k+1.
     void UpdateRadar(MeasurementPackage meas_package);
 
+    double getNis(void)const
+    {
+    	return nis_;
+    }
+	Eigen::VectorXd getMean(void)const
+	{
+		return pKf->getMean();
+	}
+
+	Eigen::MatrixXd getCovariance(void)const
+	{
+		return pKf->getCovariance();
+	}
+
     enum kfData
     {
         XPOS=0,YPOS,XVEL,YVEL
@@ -62,6 +73,9 @@ public:
 private:
     ///* initially set to false, set to true in first call of ProcessMeasurement.
     bool is_initialized_;
+
+    ///* Number of state vector.
+    int num_state_;
 
     ///* set time to be zero initially.
     int64_t previous_timestamp_;
@@ -85,6 +99,10 @@ private:
 
     ///* Radar measurement noise standard deviation radius change in m/s.
     double std_radrd_ ;
+
+    double nis_;
+
+    kalmanFilter *pKf{nullptr};
 
     // calculates the mean state vector based dynamic model.
     //@param x The state vector.
