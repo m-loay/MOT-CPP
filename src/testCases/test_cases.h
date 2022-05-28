@@ -28,15 +28,15 @@ bool linearFilter(void);
 //TestCase2
 bool trackLinearFilter(void);
 
-////TestCase3
-//bool CalculateJacobian(void);
-//
-////TestCase4
-//bool trackEKF(void);
-//
-////TestCase5
-//bool calculateRMSE(void);
-//
+//TestCase3
+bool CalculateJacobian(void);
+
+//TestCase4
+bool trackEKF(void);
+
+//TestCase5
+bool calculateRMSE(void);
+
 ////TestCase6
 //bool CalculateSigmaPointsNoAugmentation(void);
 //

@@ -94,11 +94,11 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
         if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR)
         {
             // Convert radar measurement from polar to cartesian coordinates
-            float rho = measurement_pack.raw_measurements_(0);
-            float phi = measurement_pack.raw_measurements_(1);
+            float rho (measurement_pack.raw_measurements_(0));
+            float phi (measurement_pack.raw_measurements_(1));
 
-            float px = rho * cos(phi);
-            float py = rho * sin(phi);
+            float px (rho * cos(phi));
+            float py (rho * sin(phi));
 
             x << px,py,0.0,0.0;
         }
@@ -122,7 +122,7 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
      *********************************************************************/
     //compute the time elapsed between the current and previous measurements
     //dt - expressed in seconds
-    float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
+    const float dt ((measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0);
     previous_timestamp_ = measurement_pack.timestamp_;
 
     /**********************************************************************
@@ -157,9 +157,9 @@ void kfApp::Prediction(const double dt)
     /**********************************************************************
      *    1. Set the process covariance matrix Q
      *********************************************************************/
-    float dt_2 = dt * dt;
-    float dt_3 = dt_2 * dt;
-    float dt_4 = dt_3 * dt;
+    const float dt_2 (dt * dt);
+    const float dt_3 (dt_2 * dt);
+    const float dt_4 (dt_3 * dt);
     Eigen::MatrixXd Q = Eigen::MatrixXd(num_state_, num_state_);
     Q <<  dt_4/4*noise_ax, 0, dt_3/2*noise_ax, 0,
          0, dt_4/4*noise_ay, 0, dt_3/2*noise_ay,
@@ -184,27 +184,27 @@ void kfApp::UpdateLidar(MeasurementPackage meas_package)
     /**********************************************************************
      *    extract measurement size
      *********************************************************************/
-    int measSize = meas_package.raw_measurements_.size();
+    int measSize (meas_package.raw_measurements_.size());
 
     /**********************************************************************
      *    set output matrix H
      *********************************************************************/
-    Eigen::MatrixXd H = Eigen::MatrixXd(measSize, num_state_);
+    Eigen::MatrixXd H {Eigen::MatrixXd(measSize, num_state_)};
     H.setIdentity(measSize, num_state_);
 
     /**********************************************************************
      *    add measurement noise covariance matrix
      *********************************************************************/
-    Eigen::MatrixXd R = Eigen::MatrixXd(measSize, measSize);
+    Eigen::MatrixXd R {Eigen::MatrixXd(measSize, measSize)};
     R.fill(0.0);
     R.diagonal()<<pow(std_laspx_, 2),pow(std_laspy_, 2);
 
     /**********************************************************************
      *    Calculate Innovation
      *********************************************************************/
-    Eigen::VectorXd zpred = H * pKf->getMean();
-    Eigen::VectorXd Y = meas_package.raw_measurements_ - zpred;
-    Eigen::MatrixXd S = (H * pKf->getCovariance() * H.transpose()) + R;
+    Eigen::VectorXd zpred{H * pKf->getMean()};
+    Eigen::VectorXd Y {meas_package.raw_measurements_ - zpred};
+    Eigen::MatrixXd S {(H * pKf->getCovariance() * H.transpose()) + R};
     nis_ = Y.transpose() * S.inverse() * Y;
 
     /**********************************************************************
@@ -230,30 +230,29 @@ void kfApp::UpdateRadar(MeasurementPackage meas_package)
     /**********************************************************************
      *    extract measurement size
      *********************************************************************/
-    int measSize = meas_package.raw_measurements_.size();
+    int measSize (meas_package.raw_measurements_.size());
 
     /**********************************************************************
      *    set output matrix H
      *********************************************************************/
-    Eigen::MatrixXd H = Eigen::MatrixXd(measSize, num_state_);
-    H = h_prime_(x);
+    Eigen::MatrixXd H{Eigen::MatrixXd(measSize, num_state_)};
+    H = h_prime_();
 
     /**********************************************************************
      *    add measurement noise covariance matrix
      *********************************************************************/
-    Eigen::MatrixXd R = Eigen::MatrixXd(measSize, measSize);
+    Eigen::MatrixXd R {Eigen::MatrixXd(measSize, measSize)};
     R.fill(0.0);
     R.diagonal()<<pow(std_radr_, 2),pow(std_radphi_, 2),pow(std_radrd_, 2);
 
     /**********************************************************************
      *    Calculate Measurement Prediction
      *********************************************************************/
-    Eigen::VectorXd zpred = h_(x ,measSize);
-    Eigen::VectorXd Y = meas_package.raw_measurements_ - zpred;
+    Eigen::VectorXd zpred {h_(x ,measSize)};
+    Eigen::VectorXd Y {meas_package.raw_measurements_ - zpred};
     Y = Innovationhelper(Y);
-    Eigen::MatrixXd S = (H * P * H.transpose()) + R;
+    Eigen::MatrixXd S {(H * P * H.transpose()) + R};
     nis_ = Y.transpose() * S.inverse() * Y;
-
 
     /**********************************************************************
      *    Update Linear
@@ -277,7 +276,7 @@ void kfApp::UpdateRadar(MeasurementPackage meas_package)
 Eigen::VectorXd kfApp::g_(const Eigen::VectorXd &mean, const void *p_args)
 {
     //create state transition matrix for predicted state covariance.
-    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(mean.rows(), mean.rows());
+    Eigen::MatrixXd F {Eigen::MatrixXd::Identity(mean.rows(), mean.rows())};
     double dt = *(double*)p_args;
     F << 1, 0, 1, 0,
          0, 1, 0, 1,
@@ -305,7 +304,7 @@ Eigen::VectorXd kfApp::g_(const Eigen::VectorXd &mean, const void *p_args)
 Eigen::MatrixXd kfApp::g_prime_ (const Eigen::VectorXd &mean, const void *p_args)
 {
     //create state transition matrix for predicted state covariance.
-    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(mean.rows(), mean.rows());
+    Eigen::MatrixXd F {Eigen::MatrixXd::Identity(mean.rows(), mean.rows())};
     double dt = *(double*)p_args;
     F << 1, 0, 1, 0,
          0, 1, 0, 1,
@@ -332,7 +331,7 @@ Eigen::MatrixXd kfApp::g_prime_ (const Eigen::VectorXd &mean, const void *p_args
 Eigen::VectorXd kfApp:: h_(const Eigen::VectorXd &x , size_t size)
 {
     Eigen::VectorXd h_x(size);
-    float rho = sqrt(x(0) * x(0) + x(1) * x(1));
+    const float rho (sqrt(x(0) * x(0) + x(1) * x(1)));
 
   
     //check division by zero
@@ -362,7 +361,7 @@ Eigen::VectorXd kfApp:: h_(const Eigen::VectorXd &x , size_t size)
  *  @return   Hj 
  *  the state transition matrix of measurements{MatrixXd}.
  */
-Eigen::MatrixXd kfApp::h_prime_(const Eigen::VectorXd& x_state)
+Eigen::MatrixXd kfApp::h_prime_(void)
 {
     /**
   TODO:
@@ -372,14 +371,14 @@ Eigen::MatrixXd kfApp::h_prime_(const Eigen::VectorXd& x_state)
     Eigen::MatrixXd Hj(3,4);
     Hj.setZero();
 
-    //recover state parameters
-    float x     = x_state(0);
-    float y     = x_state(1);
-    float x_dot = x_state(2);
-    float y_dot = x_state(3);
+    const auto x_state {pKf->getMean()};
+    const float x     ( x_state(0));
+    const float y     ( x_state(1));
+    const float x_dot ( x_state(2));
+    const float y_dot ( x_state(3));
 
     /*check division by zero*/
-    float x2_y2 = pow(x, 2) + pow(y, 2);
+    const float x2_y2 (pow(x, 2) + pow(y, 2));
 
     if(fabs(x2_y2) < 0.00001)
     {
@@ -411,8 +410,7 @@ Eigen::MatrixXd kfApp::h_prime_(const Eigen::VectorXd& x_state)
  */
 Eigen::VectorXd kfApp::Innovationhelper(const Eigen::VectorXd &sig_pred)
 {
-    Eigen::VectorXd z_diff;
-    z_diff = sig_pred;
+    Eigen::VectorXd z_diff(sig_pred);
     //angle normalization
     while(z_diff(1) > M_PI) z_diff(1) -= 2. * M_PI;
     while(z_diff(1) < -M_PI) z_diff(1) += 2. * M_PI;

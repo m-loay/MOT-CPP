@@ -92,19 +92,20 @@ int main(int argc, char* argv[])
         // 2.output the measurements
         if (tools.measurement_pack_list[k].sensor_type_ == MeasurementPackage::LASER)
         {
-            tools.nis_lidar.push_back(tracking.kd_.nis);
+            tools.nis_lidar.push_back(tracking.getNis());
         }
         else if (tools.measurement_pack_list[k].sensor_type_ == MeasurementPackage::RADAR)
         {
-            tools.nis_radar.push_back(tracking.kd_.nis);
+            tools.nis_radar.push_back(tracking.getNis());
         }
 
 #if defined(USE_EKF)
         // 3.output the estimation
-        double x  = tracking.kd_.x(kfApp::XPOS) ; // pos1 - est
-        double y  = tracking.kd_.x(kfApp::YPOS) ; // pos2 - est
-        double vx = tracking.kd_.x(kfApp::XVEL) ; // vx -est
-        double vy = tracking.kd_.x(kfApp::YVEL) ; // vy -est
+        auto x_state{tracking.getMean()};
+        double x  = x_state(kfApp::XPOS) ; // pos1 - est
+        double y  = x_state(kfApp::YPOS) ; // pos2 - est
+        double vx = x_state(kfApp::XVEL) ; // vx -est
+        double vy = x_state(kfApp::YVEL) ; // vy -est
 #endif
 #if defined(USE_UKF)
         // 3.output the estimation

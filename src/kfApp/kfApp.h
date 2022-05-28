@@ -125,7 +125,7 @@ private:
     // Calculate the derivative of h_function.
     //@param x_state The state vector.
     //@return the state transition matrix of measurements.
-    Eigen::MatrixXd h_prime_(const Eigen::VectorXd& x_state);
+    Eigen::MatrixXd h_prime_(void);
 
     // Innovation helper function for angle rounding issues.
     //@param  sig_pred The sigma points vector .

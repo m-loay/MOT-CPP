@@ -166,7 +166,7 @@ bool trackLinearFilter(void)
      *  Parse input file                                                         *
      *******************************************************************************/
     // hardcoded input file with laser and radar measurements
-    std::string in_file_name_ = "data/obj_pose-laser-radar-synthetic-input.txt";
+    std::string in_file_name_ = "../data/obj_pose-laser-radar-synthetic-input.txt";
     std::ifstream in_file(in_file_name_.c_str(), std::ifstream::in);
 
     if (!in_file.is_open())
@@ -209,8 +209,6 @@ bool trackLinearFilter(void)
         }
         else if (sensor_type.compare("R") == 0)
         {
-            // radar measurement
-            // read measurements at this timestamp
             continue;
         }
         i++;
@@ -219,27 +217,52 @@ bool trackLinearFilter(void)
     /*******************************************************************************
      *  Run Kalman Filter and save the output                                    *
      *******************************************************************************/
+    // create vectors to save the output
     std::vector<Eigen::VectorXd> x_rest_list;
     std::vector<Eigen::MatrixXd> p_rest_list;
-    // Create a KF instance
-    kfApp tracking(4);
 
+    // define the size of state vector
+    int num_state{4};
+
+    // Create a tracking instance
+    kfApp tracking(num_state);
+
+    //Initialize the mean and Covariance
+    Eigen::VectorXd x;
+    Eigen::MatrixXd P;
+
+    x = Eigen::VectorXd(num_state);
+    x.fill(0.0);
+    x << 0.463227 ,0.607415 ,0.0 ,0.0;
+
+    P = Eigen::MatrixXd(4, 4);
+    P = Eigen::MatrixXd::Identity(num_state, num_state);
+    P(2,2) = 1000.0;
+    P(3,3) = 1000.0;
+
+    // define the noises(motion, sensors)
     tracking.noise_ax = 5;
     tracking.noise_ay = 5;
     tracking.std_laspx_ = 0.15;
     tracking.std_laspy_ = 0.15;
 
-    for (unsigned int n = 0; n < measurement_pack_list.size(); ++n)
+    // Initialize kalman filter library within the tracking instance
+    tracking.pKf = new kalmanFilter(num_state,x,P);
+
+    //Since its required to use specific initialize values
+    //the initialization step should be skipped by setting the follow:
+    tracking.previous_timestamp_ = measurement_pack_list[0].timestamp_;
+    tracking.is_initialized_ = true;
+
+    for (unsigned int n = 1; n < measurement_pack_list.size(); ++n)
     {
+
         // Call the KF-based fusion
         tracking.ProcessMeasurement(measurement_pack_list[n]);
 
         //collect result
-        if(n>0)
-        {
-            x_rest_list.push_back(tracking.getMean());
-            p_rest_list.push_back(tracking.getCovariance());
-        }
+        x_rest_list.push_back(tracking.getMean());
+        p_rest_list.push_back(tracking.getCovariance());
     }
     /*******************************************************************************
      *  Set correct Answer                                                         *
@@ -248,6 +271,7 @@ bool trackLinearFilter(void)
     //x-state
     Eigen::VectorXd x_corr = Eigen::VectorXd(4);
     std::vector<Eigen::VectorXd> x_corr_list;
+
     x_corr << 0.96749,0.405862,4.58427,-1.83232;
     x_corr_list.push_back(x_corr);
     x_corr << 0.958365,0.627631,0.110368, 2.04304;
@@ -280,9 +304,9 @@ bool trackLinearFilter(void)
     /*******************************************************************************
      *  Evaluation                                                    *
      *******************************************************************************/
-        bool r= true;
+    bool r= true;
 
-    for (unsigned int n = 0; n < measurement_pack_list.size()-1; ++n)
+    for (unsigned int n = 1; n < measurement_pack_list.size()-1; ++n)
     {
         r = r && ((x_rest_list[n] - x_corr_list[n]).norm() < 0.001);
         r = r && ((p_rest_list[n] - p_corr_list[n]).norm() < 0.001);
@@ -290,266 +314,296 @@ bool trackLinearFilter(void)
     return r;
 }
 
-///**
-// * @brief Test case 3 CalculateJacobian
-// *        Test the jacobian Calculation.
-// *
-// */
-//bool CalculateJacobian(void)
-//{
-//    /**********************************************
-//     *  Set jacobia Inputs                        *
-//     **********************************************/
-//    // Create a KF instance
-//    kfApp tracking(4);
-//    tracking.kd_.x<< 1, 2, 0.2, 0.4;
-//
-//    /*******************************************************************************
-//     *  Calculate the Jacobian                                                     *
-//     *******************************************************************************/
-//    Eigen::MatrixXd H = tracking.h_prime_(tracking.kd_.x);
-//
-//    /*******************************************************************************
-//     *  Set correct Answer                                                         *
-//     *******************************************************************************/
-//    //Correct Answer
-//    //P-state
-//    Eigen::MatrixXd Hj_corr = Eigen::MatrixXd(3,4);
-//    Hj_corr << 0.447214, 0.894427, 0, 0,
-//                -0.4, 0.2, 0, 0,
-//                0, 0, 0.447214, 0.894427;
-//
-//    /*******************************************************************************
-//     *  Evaluation                                                    *
-//     *******************************************************************************/
-//    bool r= true;
-//    r = r && ((H -Hj_corr).norm() < 0.001);
-//
-//    return r;
-//}
-//
-///**
-// * @brief Test case 4 trackEKF
-// *        Test both linear/NoneLinear update step and linear prediction step .
-// *
-// */
-//bool trackEKF(void)
-//{
-//    /*******************************************************************************
-//     *  Parse input file                                                         *
-//     *******************************************************************************/
-//    // hardcoded input file with laser and radar measurements
-//    std::string in_file_name_ = "data/obj_pose-laser-radar-synthetic-input.txt";
-//    std::ifstream in_file(in_file_name_.c_str(), std::ifstream::in);
-//
-//    if (!in_file.is_open())
-//    {
-//        std::cout << "Cannot open input file: " << in_file_name_ << std::endl;
-//    }
-//
-//    /**********************************************
-//     *  Set Measurements                          *
-//     **********************************************/
-//    // prep the measurement packages (each line represents a measurement at a timestamp)
-//    std::vector<MeasurementPackage> measurement_pack_list;
-//    std::string line;
-//    int i=0;
-//    while (getline(in_file, line)&& (i<=5))
-//    {
-//        MeasurementPackage meas_package;
-//        std::string sensor_type;
-//        std::istringstream iss(line);
-//        long long timestamp;
-//
-//        // reads first element from the current line
-//        iss >> sensor_type;
-//
-//        if (sensor_type.compare("L") == 0)
-//        {
-//            // laser measurement
-//            // read measurements at this timestamp
-//
-//            meas_package.sensor_type_ = MeasurementPackage::LASER;
-//            meas_package.raw_measurements_ = Eigen::VectorXd(2);
-//            float px;
-//            float py;
-//            iss >> px;
-//            iss >> py;
-//            meas_package.raw_measurements_ << px, py;
-//            iss >> timestamp;
-//            meas_package.timestamp_ = timestamp;
-//            measurement_pack_list.push_back(meas_package);
-//        }
-//        else if (sensor_type.compare("R") == 0)
-//        {
-//            // radar measurement
-//            // read measurements at this
-//            meas_package.sensor_type_ = MeasurementPackage::RADAR;
-//            meas_package.raw_measurements_ = Eigen::VectorXd(3);
-//            float ro;
-//            float phi;
-//            float ro_dot;
-//            iss >> ro;
-//            iss >> phi;
-//            iss >> ro_dot;
-//            meas_package.raw_measurements_ << ro, phi, ro_dot;
-//            iss >> timestamp;
-//            meas_package.timestamp_ = timestamp;
-//            measurement_pack_list.push_back(meas_package);
-//        }
-//        i++;
-//    }
-//
-//    /*******************************************************************************
-//     *  Run Kalman Filter and save the output                                    *
-//     *******************************************************************************/
-//    std::vector<Eigen::VectorXd> x_rest_list;
-//    std::vector<Eigen::MatrixXd> p_rest_list;
-//    // Create a KF instance
-//    kfApp tracking(4);
-//    tracking.kd_.x.fill(0);
-//    tracking.kd_.P = Eigen::MatrixXd(4, 4);
-//    tracking.kd_.P << 1, 0, 0, 0,
-//                        0, 1, 0, 0,
-//                        0, 0, 1000, 0,
-//                        0, 0, 0, 1000;
-//
-//    tracking.noise_ax = 5;
-//    tracking.noise_ay = 5;
-//    tracking.std_laspx_ = 0.15;
-//    tracking.std_laspy_ = 0.15;
-//
-//    for (unsigned int n = 0; n < measurement_pack_list.size(); ++n)
-//    {
-//        // Call the KF-based fusion
-//        tracking.ProcessMeasurement(measurement_pack_list[n]);
-//        //collect result
-//        if(n>0)
-//        {
-//            x_rest_list.push_back(tracking.kd_.x);
-//            p_rest_list.push_back(tracking.kd_.P);
-//        }
-//    }
-//    /*******************************************************************************
-//     *  Set correct Answer                                                         *
-//     *******************************************************************************/
-//    //Correct Answer
-//    //x-state
-//    Eigen::VectorXd x_corr = Eigen::VectorXd(4);
-//    std::vector<Eigen::VectorXd> x_corr_list;
-//    x_corr << 0.722628,0.567796,3.70663,-0.56481;
-//    x_corr_list.push_back(x_corr);
-//    x_corr << 0.969665,0.413432,5.6934,-2.08598;
-//    x_corr_list.push_back(x_corr);
-//    x_corr << 0.984782,0.681457, 2.3165,0.760458;
-//    x_corr_list.push_back(x_corr);
-//    x_corr <<  1.03169,0.698205,2.11118,0.916794;
-//    x_corr_list.push_back(x_corr);
-//    x_corr << 1.21554,0.670913,2.35642,0.325553;
-//    x_corr_list.push_back(x_corr);
-//
-//    //P-state
-//    Eigen::MatrixXd p_corr = Eigen::MatrixXd(4,4);
-//    std::vector<Eigen::MatrixXd> p_corr_list;
-//
-//    p_corr <<   0.0744763,   0.0957463,   0.0140901,  -0.0088403,
-//                0.0957463,    0.127007, -0.00884025,  0.00923985,
-//                0.0140901, -0.00884025,     180.933,    -137.793,
-//                -0.0088403,  0.00923985,    -137.793,     105.334;
-//    p_corr_list.push_back(p_corr);
-//
-//    p_corr <<    0.0212348, -0.000763264,     0.275495,    -0.208923,
-//                -0.000763264,     0.020816,    -0.208923,      0.16087,
-//                0.275495,    -0.208923,      5.94417,      -4.3339,
-//                -0.208923,      0.16087,      -4.3339,      3.56638;
-//    p_corr_list.push_back(p_corr);
-//
-//    p_corr <<     0.012367,   0.00418933,    0.0424686,   -0.0499424,
-//                0.00418933,   0.00439293,   0.00839503, -0.000486848,
-//                0.0424686,   0.00839503,     0.265165  ,   -0.19538,
-//                -0.0499424, -0.000486848,     -0.19538,     0.490509;
-//    p_corr_list.push_back(p_corr);
-//
-//    p_corr <<    0.00974513, 0.000737499,   0.0318128,  -0.0346475,
-//                0.000737499,  0.00442744, -0.00294044,   0.0215166,
-//                0.0318128, -0.00294044,    0.198251,   -0.107771,
-//                -0.0346475,   0.0215166,   -0.107771,    0.387774;
-//    p_corr_list.push_back(p_corr);
-//
-//    p_corr << 0.00769929, 0.00194051,  0.0192605, -0.0125547,
-//                0.00194051, 0.00382965, 0.00150358,   0.011961,
-//                0.0192605, 0.00150358,   0.109024, -0.0288252,
-//                -0.0125547,   0.011961, -0.0288252,   0.165914;
-//    p_corr_list.push_back(p_corr);
-//
-//    /*******************************************************************************
-//     *  Evaluation                                                    *
-//     *******************************************************************************/
-//        bool r= true;
-//
-//    for (unsigned int n = 0; n < measurement_pack_list.size()-1; ++n)
-//    {
-//        r = r && ((x_rest_list[n] - x_corr_list[n]).norm() < 0.001);
-//        r = r && ((p_rest_list[n] - p_corr_list[n]).norm() < 0.001);
-//    }
-//    return r;
-//}
-//
-///**
-// * @brief Test case 5 calculateRMSE
-// *        Test the RMSE Calculation.
-// *
-// */
-//bool calculateRMSE(void)
-//{
-//    /**********************************************
-//     *  Set RMSE Inputs                        *
-//     **********************************************/
-//    std::vector<Eigen::VectorXd> estimations;
-//    std::vector<Eigen::VectorXd> ground_truth;
-//    Tools tools;
-//
-//    // the input list of estimations
-//    Eigen::VectorXd e(4);
-//    e << 1, 1, 0.2, 0.1;
-//    estimations.push_back(e);
-//    e << 2, 2, 0.3, 0.2;
-//    estimations.push_back(e);
-//    e << 3, 3, 0.4, 0.3;
-//    estimations.push_back(e);
-//
-//    // the corresponding list of ground truth values
-//    Eigen::VectorXd g(4);
-//    g << 1.1, 1.1, 0.3, 0.2;
-//    ground_truth.push_back(g);
-//    g << 2.1, 2.1, 0.4, 0.3;
-//    ground_truth.push_back(g);
-//    g << 3.1, 3.1, 0.5, 0.4;
-//    ground_truth.push_back(g);
-//
-//    /*******************************************************************************
-//     *  Calculate the RMSE                                                    *
-//     *******************************************************************************/
-//        Eigen::VectorXd rmse(4);
-//    rmse = tools.CalculateRMSE(estimations, ground_truth);
-//
-//    /*******************************************************************************
-//     *  Set correct Answer                                                         *
-//     *******************************************************************************/
-//    //Correct Answer
-//    //rmse correct
-//    Eigen::VectorXd rmse_correct(4);
-//    rmse_correct << 0.1, 0.1, 0.1, 0.1;
-//
-//    /*******************************************************************************
-//     *  Evaluation                                                    *
-//     *******************************************************************************/
-//        bool r= true;
-//    r = r && ((rmse - rmse_correct).norm() < 0.001);
-//
-//    return r;
-//}
-//
+/**
+ * @brief Test case 3 CalculateJacobian
+ *        Test the jacobian Calculation.
+ *
+ */
+bool CalculateJacobian(void)
+{
+    /**********************************************
+     *  Set jacobia Inputs                        *
+     **********************************************/
+    // define the size of state vector
+    int num_state{4};
+
+    //Initialize the mean and Covariance
+    Eigen::VectorXd x;
+
+    x = Eigen::VectorXd(num_state);
+    x.fill(0.0);
+    x << 1, 2, 0.2, 0.4;
+
+    // Create a KF instance
+    kfApp tracking(num_state);
+
+    // Initialize kalman filter library within the tracking instance
+    tracking.pKf = new kalmanFilter(num_state,x);
+
+    /*******************************************************************************
+     *  Calculate the Jacobian                                                     *
+     *******************************************************************************/
+    Eigen::MatrixXd H = tracking.h_prime_();
+
+    /*******************************************************************************
+     *  Set correct Answer                                                         *
+     *******************************************************************************/
+    //Correct Answer
+    //H-Jaccobian
+    Eigen::MatrixXd Hj_corr = Eigen::MatrixXd(3,4);
+    Hj_corr << 0.447214, 0.894427, 0, 0,
+                -0.4, 0.2, 0, 0,
+                0, 0, 0.447214, 0.894427;
+
+    /*******************************************************************************
+     *  Evaluation                                                    *
+     *******************************************************************************/
+    bool r= true;
+    r = r && ((H -Hj_corr).norm() < 0.001);
+
+    return r;
+}
+
+/**
+ * @brief Test case 4 trackEKF
+ *        Test both linear/NoneLinear update step and linear prediction step .
+ *
+ */
+bool trackEKF(void)
+{
+    /*******************************************************************************
+     *  Parse input file                                                         *
+     *******************************************************************************/
+    // hardcoded input file with laser and radar measurements
+    std::string in_file_name_ = "../data/obj_pose-laser-radar-synthetic-input.txt";
+    std::ifstream in_file(in_file_name_.c_str(), std::ifstream::in);
+
+    if (!in_file.is_open())
+    {
+        std::cout << "Cannot open input file: " << in_file_name_ << std::endl;
+    }
+
+    /**********************************************
+     *  Set Measurements                          *
+     **********************************************/
+    // prep the measurement packages (each line represents a measurement at a timestamp)
+    std::vector<MeasurementPackage> measurement_pack_list;
+    std::string line;
+    int i=0;
+    while (getline(in_file, line)&& (i<=5))
+    {
+        MeasurementPackage meas_package;
+        std::string sensor_type;
+        std::istringstream iss(line);
+        long long timestamp;
+
+        // reads first element from the current line
+        iss >> sensor_type;
+
+        if (sensor_type.compare("L") == 0)
+        {
+            // laser measurement
+            // read measurements at this timestamp
+
+            meas_package.sensor_type_ = MeasurementPackage::LASER;
+            meas_package.raw_measurements_ = Eigen::VectorXd(2);
+            float px;
+            float py;
+            iss >> px;
+            iss >> py;
+            meas_package.raw_measurements_ << px, py;
+            iss >> timestamp;
+            meas_package.timestamp_ = timestamp;
+            measurement_pack_list.push_back(meas_package);
+        }
+        else if (sensor_type.compare("R") == 0)
+        {
+            // radar measurement
+            // read measurements at this
+            meas_package.sensor_type_ = MeasurementPackage::RADAR;
+            meas_package.raw_measurements_ = Eigen::VectorXd(3);
+            float ro;
+            float phi;
+            float ro_dot;
+            iss >> ro;
+            iss >> phi;
+            iss >> ro_dot;
+            meas_package.raw_measurements_ << ro, phi, ro_dot;
+            iss >> timestamp;
+            meas_package.timestamp_ = timestamp;
+            measurement_pack_list.push_back(meas_package);
+        }
+        i++;
+    }
+
+    /*******************************************************************************
+     *  Run Kalman Filter and save the output                                    *
+     *******************************************************************************/
+    // create vectors to save the output
+    std::vector<Eigen::VectorXd> x_rest_list;
+    std::vector<Eigen::MatrixXd> p_rest_list;
+
+    // define the size of state vector
+    int num_state{4};
+
+    // Create a tracking instance
+    kfApp tracking(num_state);
+
+    //Initialize the mean and Covariance
+    Eigen::VectorXd x;
+    Eigen::MatrixXd P;
+
+    x = Eigen::VectorXd(num_state);
+    x.fill(0.0);
+    x << 0.463227 ,0.607415 ,0.0 ,0.0;
+
+    P = Eigen::MatrixXd(4, 4);
+    P = Eigen::MatrixXd::Identity(num_state, num_state);
+    P(2,2) = 1000.0;
+    P(3,3) = 1000.0;
+
+    // define the noises(motion, sensors)
+    tracking.noise_ax = 5;
+    tracking.noise_ay = 5;
+    tracking.std_laspx_ = 0.15;
+    tracking.std_laspy_ = 0.15;
+
+    // Initialize kalman filter library within the tracking instance
+    tracking.pKf = new kalmanFilter(num_state,x,P);
+
+    //Since its required to use specific initialize values
+    //the initialization step should be skipped by setting the follow:
+    tracking.previous_timestamp_ = measurement_pack_list[0].timestamp_;
+    tracking.is_initialized_ = true;
+
+    for (unsigned int n = 1; n < measurement_pack_list.size(); ++n)
+    {
+        // Call the KF-based fusion
+        tracking.ProcessMeasurement(measurement_pack_list[n]);
+
+        //collect result
+        x_rest_list.push_back(tracking.getMean());
+        p_rest_list.push_back(tracking.getCovariance());
+    }
+    /*******************************************************************************
+     *  Set correct Answer                                                         *
+     *******************************************************************************/
+    //Correct Answer
+    //x-state
+    Eigen::VectorXd x_corr = Eigen::VectorXd(4);
+    std::vector<Eigen::VectorXd> x_corr_list;
+    x_corr << 0.722628,0.567796,3.70663,-0.56481;
+    x_corr_list.push_back(x_corr);
+    x_corr << 0.969665,0.413432,5.6934,-2.08598;
+    x_corr_list.push_back(x_corr);
+    x_corr << 0.984782,0.681457, 2.3165,0.760458;
+    x_corr_list.push_back(x_corr);
+    x_corr <<  1.03169,0.698205,2.11118,0.916794;
+    x_corr_list.push_back(x_corr);
+    x_corr << 1.21554,0.670913,2.35642,0.325553;
+    x_corr_list.push_back(x_corr);
+
+    //P-state
+    Eigen::MatrixXd p_corr = Eigen::MatrixXd(4,4);
+    std::vector<Eigen::MatrixXd> p_corr_list;
+
+    p_corr <<   0.0744763,   0.0957463,   0.0140901,  -0.0088403,
+                0.0957463,    0.127007, -0.00884025,  0.00923985,
+                0.0140901, -0.00884025,     180.933,    -137.793,
+                -0.0088403,  0.00923985,    -137.793,     105.334;
+    p_corr_list.push_back(p_corr);
+
+    p_corr <<    0.0212348, -0.000763264,     0.275495,    -0.208923,
+                -0.000763264,     0.020816,    -0.208923,      0.16087,
+                0.275495,    -0.208923,      5.94417,      -4.3339,
+                -0.208923,      0.16087,      -4.3339,      3.56638;
+    p_corr_list.push_back(p_corr);
+
+    p_corr <<     0.012367,   0.00418933,    0.0424686,   -0.0499424,
+                0.00418933,   0.00439293,   0.00839503, -0.000486848,
+                0.0424686,   0.00839503,     0.265165  ,   -0.19538,
+                -0.0499424, -0.000486848,     -0.19538,     0.490509;
+    p_corr_list.push_back(p_corr);
+
+    p_corr <<    0.00974513, 0.000737499,   0.0318128,  -0.0346475,
+                0.000737499,  0.00442744, -0.00294044,   0.0215166,
+                0.0318128, -0.00294044,    0.198251,   -0.107771,
+                -0.0346475,   0.0215166,   -0.107771,    0.387774;
+    p_corr_list.push_back(p_corr);
+
+    p_corr << 0.00769929, 0.00194051,  0.0192605, -0.0125547,
+                0.00194051, 0.00382965, 0.00150358,   0.011961,
+                0.0192605, 0.00150358,   0.109024, -0.0288252,
+                -0.0125547,   0.011961, -0.0288252,   0.165914;
+    p_corr_list.push_back(p_corr);
+
+    /*******************************************************************************
+     *  Evaluation                                                    *
+     *******************************************************************************/
+    bool r= true;
+    for (unsigned int n = 1; n < measurement_pack_list.size()-1; ++n)
+    {
+        r = r && ((x_rest_list[n] - x_corr_list[n]).norm() < 0.001);
+        r = r && ((p_rest_list[n] - p_corr_list[n]).norm() < 0.001);
+    }
+    return r;
+}
+
+/**
+ * @brief Test case 5 calculateRMSE
+ *        Test the RMSE Calculation.
+ *
+ */
+bool calculateRMSE(void)
+{
+    /**********************************************
+     *  Set RMSE Inputs                        *
+     **********************************************/
+    std::vector<Eigen::VectorXd> estimations;
+    std::vector<Eigen::VectorXd> ground_truth;
+    Tools tools;
+
+    // the input list of estimations
+    Eigen::VectorXd e(4);
+    e << 1, 1, 0.2, 0.1;
+    estimations.push_back(e);
+    e << 2, 2, 0.3, 0.2;
+    estimations.push_back(e);
+    e << 3, 3, 0.4, 0.3;
+    estimations.push_back(e);
+
+    // the corresponding list of ground truth values
+    Eigen::VectorXd g(4);
+    g << 1.1, 1.1, 0.3, 0.2;
+    ground_truth.push_back(g);
+    g << 2.1, 2.1, 0.4, 0.3;
+    ground_truth.push_back(g);
+    g << 3.1, 3.1, 0.5, 0.4;
+    ground_truth.push_back(g);
+
+    /*******************************************************************************
+     *  Calculate the RMSE                                                    *
+     *******************************************************************************/
+    Eigen::VectorXd rmse(4);
+    rmse = tools.CalculateRMSE(estimations, ground_truth);
+
+    /*******************************************************************************
+     *  Set correct Answer                                                         *
+     *******************************************************************************/
+    //Correct Answer
+    //rmse correct
+    Eigen::VectorXd rmse_correct(4);
+    rmse_correct << 0.1, 0.1, 0.1, 0.1;
+
+    /*******************************************************************************
+     *  Evaluation                                                    *
+     *******************************************************************************/
+    bool r= true;
+    r = r && ((rmse - rmse_correct).norm() < 0.001);
+
+    return r;
+}
+
 ///**
 // * @brief Test case 6 CalculateSigmaPointsNoAugmentation
 // *        Test the calculation of sigma points in UT.

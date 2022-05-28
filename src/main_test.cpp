@@ -28,21 +28,22 @@ GTEST_TEST(KFTest,trackLinearFilter)
     EXPECT_EQ(trackLinearFilter(),true);
 }
 
-//GTEST_TEST(EKFTest,CalculateJacobian)
-//{
-//    EXPECT_EQ(CalculateJacobian(), true);
-//}
-//
-//GTEST_TEST(EKFTest,trackEKF)
-//{
-//    EXPECT_EQ(trackEKF(),true);
-//}
-//
-//GTEST_TEST(RMSE,calculateRMSE)
-//{
-//    EXPECT_EQ(calculateRMSE(),true);
-//}
-//
+GTEST_TEST(EKFTest,CalculateJacobian)
+{
+    EXPECT_EQ(CalculateJacobian(), true);
+}
+
+GTEST_TEST(EKFTest,trackEKF)
+{
+    EXPECT_EQ(trackEKF(),true);
+}
+
+
+GTEST_TEST(RMSE,calculateRMSE)
+{
+    EXPECT_EQ(calculateRMSE(),true);
+}
+
 //GTEST_TEST(UTTEST,CalculateSigmaPoints)
 //{
 //    EXPECT_EQ(CalculateSigmaPointsNoAugmentation(),true);
