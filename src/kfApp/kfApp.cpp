@@ -81,7 +81,7 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
      ****************************************************************************/
     if (!is_initialized_)
     {
-		linearkf_.x << 1, 1, 1, 1;
+		linearkf_.x << 1.0, 1.0, 1.0, 1.0;
 		linearkf_.P(2,2) = 1000.0;
 		linearkf_.P(3,3) = 1000.0;
 
@@ -89,11 +89,11 @@ void kfApp::ProcessMeasurement(const MeasurementPackage &measurement_pack)
         if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR)
         {
             // Convert radar measurement from polar to cartesian coordinates
-            float rho = measurement_pack.raw_measurements_(0);
-            float phi = measurement_pack.raw_measurements_(1);
+            double rho = measurement_pack.raw_measurements_(0);
+			double phi = measurement_pack.raw_measurements_(1);
 
-            float px = rho * cos(phi);
-            float py = rho * sin(phi);
+			double px = rho * cos(phi);
+			double py = rho * sin(phi);
 
 			linearkf_.x << px,py,0.0,0.0;
         }
@@ -317,11 +317,11 @@ Eigen::MatrixXd kfApp::g_prime_ (const Eigen::VectorXd &mean, const void *p_args
 Eigen::VectorXd kfApp:: h_(const Eigen::VectorXd &x , size_t size)
 {
     Eigen::VectorXd h_x(size);
-    float rho = sqrt(x(0) * x(0) + x(1) * x(1));
+    double rho = sqrt(x(0) * x(0) + x(1) * x(1));
 
   
     //check division by zero
-    if(fabs(rho) < 0.0001)
+    if(fabs(rho) < std::numeric_limits<double>::epsilon())
     {
         h_x(0) = rho;
         h_x(1) = atan2(x(1), x(0));
@@ -358,15 +358,15 @@ Eigen::MatrixXd kfApp::h_prime_(const Eigen::VectorXd& x_state)
     Hj.setZero();
 
     //recover state parameters
-    float x     = x_state(0);
-    float y     = x_state(1);
-    float x_dot = x_state(2);
-    float y_dot = x_state(3);
+    double x     = x_state(0);
+	double y     = x_state(1);
+	double x_dot = x_state(2);
+	double y_dot = x_state(3);
 
     /*check division by zero*/
-    float x2_y2 = pow(x, 2) + pow(y, 2);
+	double x2_y2 = pow(x, 2) + pow(y, 2);
 
-    if(fabs(x2_y2) < 0.00001)
+    if(fabs(x2_y2) < std::numeric_limits<double>::epsilon())
     {
         return Hj;
     }
