@@ -24,19 +24,11 @@
 class kalmanFilter
 {
 public:
-	Eigen::VectorXd x;
-	Eigen::MatrixXd P;
+	Eigen::VectorXd x = Eigen::VectorXd(1U);
+	Eigen::MatrixXd P = Eigen::MatrixXd::Identity(1U, 1U);
 	
 	kalmanFilter::kalmanFilter() {}
-	kalmanFilter::kalmanFilter(int numState)
-	{
-		initFilter(numState);
-	}
-
-	/*
-	 * Intialize the filter State and covariance
-	 */
-	void kalmanFilter::initFilter(int numState)
+	kalmanFilter::kalmanFilter(int numState) : kalmanFilter()
 	{
 		//create a 4D state vector, we don't know yet the values of the x state
 		x = Eigen::VectorXd(numState);
@@ -45,7 +37,7 @@ public:
 		//state covariance matrix P
 		P = Eigen::MatrixXd::Identity(numState, numState);
 		P.diagonal().fill(0.1);
-	}
+	}  
 
     /**
      * @brief predict

@@ -31,7 +31,7 @@ kfApp::kfApp(int num_states)
     kd_.setKalmanData(num_states);
 	
 	// initialize linear kalman filter
-	linearkf_.initFilter(num_states);
+	linearkf_ = kalmanFilter(num_states);
 
     // initially set to false, set to true in first call of ProcessMeasurement.
     is_initialized_ = false;
@@ -406,4 +406,3 @@ Eigen::VectorXd kfApp::Innovationhelper(const Eigen::VectorXd &sig_pred)
 /**
  *  @}
  */
-
